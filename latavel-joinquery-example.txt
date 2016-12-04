@@ -1,0 +1,54 @@
+$data['reportdata'] = DB::table('transactions_daily_tbl')
+                    ->select(
+								'transactions_daily_tbl.tran_ac_id',
+								'transactions_daily_tbl.tran_ac_type_id',
+								'transactions_daily_tbl.tran_created_by', 
+								DB::Raw('(Select sum(tran_amt) from transactions_daily_tbl where tran_drcr_code="C" AND tran_main="Y" GROUP BY tran_created_by) as tran_Cramt'), 
+								DB::Raw('(Select sum(tran_amt) from transactions_daily_tbl where tran_drcr_code="D" AND tran_main="Y" GROUP BY tran_created_by) as tran_Dramt'),
+							    'transactions_daily_tbl.tran_drcr_code', 
+								'acc_account_mst_tbl.cbs_ac', 
+								'acc_account_mst_tbl.ac_no', 
+								'acc_account_mst_tbl.ac_title', 
+								'cus_customer_mst_tbl.customer_bank_ac', 
+								'cus_point_tbl.point_name', 
+								'product_tbl.full_desc',
+								DB::Raw('(select sum(acbl_cur_bal + acbl_shadow_cr - acbl_shadow_dr) from ac_balance_tbl) as total_balance')                            
+                    )
+                    ->join('acc_account_mst_tbl', 'transactions_daily_tbl.tran_ac_id', '=', 'acc_account_mst_tbl.ac_id')
+                    ->join('cus_customer_mst_tbl', 'acc_account_mst_tbl.customer_id', '=', 'cus_customer_mst_tbl.customer_id')
+                    ->join('cus_point_tbl', 'cus_customer_mst_tbl.agent_point_id', '=', 'cus_point_tbl.point_id')
+                    ->join('product_tbl', 'transactions_daily_tbl.tran_ac_type_id', '=', 'product_tbl.ac_type_id')
+                    ->join('ac_balance_tbl', 'acc_account_mst_tbl.ac_id', '=', 'ac_balance_tbl.acbl_ac_id')
+                    ->where('transactions_daily_tbl.tran_main', 'Y')
+                    ->where('transactions_daily_tbl.isDeleted', 0)
+                    ->where('acc_account_mst_tbl.isDeleted', 0)
+                    ->whereBetween('transactions_daily_tbl.tran_datetime', array($from_date, $to_date))
+                    ->groupBy('transactions_daily_tbl.tran_created_by')
+                    ->get();
+
+
+$data['reportdata'] = DB::table('cus_customer_mst_tbl')
+                    ->select(
+                      DB::Raw('sum(transactions_mst_tbl.tran_amt) as tranAmt'),
+                    'transactions_mst_tbl.tran_created_by',
+                    'transactions_mst_tbl.tran_drcr_code', 
+                    'acc_account_mst_tbl.cbs_ac', 
+                    'acc_account_mst_tbl.ac_no',
+                    'acc_account_mst_tbl.ac_title',
+                    'cus_customer_mst_tbl.customer_bank_ac',
+                    'cus_point_tbl.point_name', 
+                    'product_tbl.full_desc',
+                     DB::Raw('(acbl_cur_bal + acbl_shadow_cr - acbl_shadow_dr) as total_balance')                            
+                    )
+                    ->join('acc_account_mst_tbl', 'cus_customer_mst_tbl.customer_id', '=', 'acc_account_mst_tbl.customer_id')
+                    ->join('transactions_mst_tbl', 'acc_account_mst_tbl.ac_id', '=', 'transactions_mst_tbl.tran_ac_id')
+                    ->join('cus_point_tbl', 'cus_customer_mst_tbl.agent_point_id', '=', 'cus_point_tbl.point_id')
+                    ->join('product_tbl', 'acc_account_mst_tbl.ac_type_id', '=', 'product_tbl.ac_type_id')
+                    ->join('ac_balance_tbl', 'acc_account_mst_tbl.ac_id', '=', 'ac_balance_tbl.acbl_ac_id')
+                    ->where('transactions_mst_tbl.isDeleted', 0)
+                    ->where('cus_customer_mst_tbl.customer_group','=','AGN')
+                    ->where('transactions_mst_tbl.tran_created_by','=',$user_code)
+                    ->whereBetween('transactions_mst_tbl.tran_datetime', array($from_date, $to_date))
+                    ->groupBy('transactions_mst_tbl.tran_ac_id')
+                     ->groupBy('transactions_mst_tbl.tran_drcr_code')
+                    ->paginate(50);
